@@ -1,39 +1,36 @@
 import { Webhook } from 'svix';
 import { WebhookEvent } from '@clerk/nextjs/server';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
     const payloadString = await req.text();
-    const headerPayload = req.headers;
+    const svixHeaders = {
+      'svix-id': req.headers.get('svix-id') || '',
+      'svix-timestamp': req.headers.get('svix-timestamp') || '',
+      'svix-signature': req.headers.get('svix-signature') || '',
+    };
 
-    const svix_id = headerPayload.get("svix-id") ?? "";
-    const svix_timestamp = headerPayload.get("svix-timestamp") ?? "";
-    const svix_signature = headerPayload.get("svix-signature") ?? "";
-
-    const wh = new Webhook(process.env.CLERK_WEBHOOK_SECRET || "");
+    const wh = new Webhook(process.env.CLERK_WEBHOOK_SECRET!);
 
     let evt: WebhookEvent;
 
     try {
-      evt = wh.verify(payloadString, {
-        "svix-id": svix_id,
-        "svix-timestamp": svix_timestamp,
-        "svix-signature": svix_signature,
-      }) as WebhookEvent;
-    } catch (err) {
-      console.error("Error verifying webhook:", err);
-      return new Response("Error verifying webhook", { status: 400 });
+      evt = wh.verify(payloadString, svixHeaders) as WebhookEvent;
+    } catch (err: any) {
+      console.error('Webhook verification failed:', err.message);
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
     }
 
-    console.log(`Received Clerk webhook: ${evt.type}`);
-    // You can add user creation/sync logic here later
+    console.log(`✅ Clerk Webhook received: ${evt.type}`);
 
-    return new Response("Webhook received successfully", { status: 200 });
+    // TODO: Add user sync logic here later if needed
+
+    return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
-    console.error("Webhook error:", error);
-    return new Response("Internal server error", { status: 500 });
+    console.error('Webhook error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
