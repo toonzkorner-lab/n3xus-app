@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Fix for Turbopack + Prisma issues
+  turbopack: {},
   webpack: (config) => {
     return config;
   },
